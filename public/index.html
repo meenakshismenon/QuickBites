@@ -1,0 +1,454 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>QuickBite | Modern Food Delivery & Restaurant Platform</title>
+  <meta name="description" content="QuickBite is a full-stack food delivery application built with Node.js, Express, MongoDB, and modern vanilla web technologies. Features live cart, order tracking, and restaurant menu CRUD.">
+  
+  <!-- Modern Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Outfit:wght@500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  
+  <!-- FontAwesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  
+  <!-- Custom Styles -->
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+  <div class="app-layout">
+    <!-- Navbar -->
+    <header class="navbar">
+      <div class="nav-container">
+        <div class="nav-brand" id="brandHomeBtn">
+          <div class="brand-icon">
+            <i class="fa-solid fa-burger"></i>
+          </div>
+          <div class="brand-text">
+            <span class="brand-name">QuickBite</span>
+            <span class="brand-tagline">Fresh & Fast Delivery</span>
+          </div>
+        </div>
+
+        <div class="nav-actions">
+          <!-- Database Health Indicator -->
+          <div class="db-badge" id="dbHealthBadge" title="Server & MongoDB status">
+            <span class="pulse-dot"></span>
+            <span id="dbStatusLabel">MongoDB Connected</span>
+          </div>
+
+          <!-- Seed Demo Menu -->
+          <button class="btn btn-outline btn-sm" id="btnSeedMenu" title="Populate demo dishes and sample orders">
+            <i class="fa-solid fa-wand-magic-sparkles"></i> <span>Seed Menu</span>
+          </button>
+
+          <!-- Manage Menu (Admin CRUD) -->
+          <button class="btn btn-secondary btn-sm" id="btnOpenMenuManager">
+            <i class="fa-solid fa-utensils"></i> <span>Manage Menu</span>
+          </button>
+
+          <!-- My Orders -->
+          <button class="btn btn-secondary btn-sm" id="btnOpenOrdersModal">
+            <i class="fa-solid fa-motorcycle"></i> <span>Orders (<span id="ordersCountBadge">0</span>)</span>
+          </button>
+
+          <!-- Cart Button -->
+          <button class="btn btn-primary" id="btnOpenCart">
+            <i class="fa-solid fa-bag-shopping"></i>
+            <span>Cart</span>
+            <span class="cart-pill" id="cartCountBadge">0</span>
+          </button>
+
+          <!-- Theme Toggle -->
+          <button class="btn-icon" id="themeToggleBtn" title="Toggle Theme">
+            <i class="fa-solid fa-moon" id="themeIcon"></i>
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <!-- Hero Section -->
+    <section class="hero-section">
+      <div class="hero-content">
+        <span class="hero-badge"><i class="fa-solid fa-fire"></i> Free delivery on orders over ₹499</span>
+        <h1 class="hero-title">Delicious Meals, Delivered <span class="text-gradient">To Your Door</span></h1>
+        <p class="hero-subtitle">Handcrafted artisanal pizzas, smash burgers, fragrant dum biryanis, and decadent desserts made fresh to order.</p>
+        
+        <!-- Live Search and Veg Filter -->
+        <div class="hero-search-bar">
+          <div class="search-input-wrapper">
+            <i class="fa-solid fa-magnifying-glass"></i>
+            <input type="text" id="foodSearchInput" placeholder="Search dishes by name, category, or ingredients...">
+            <button class="clear-btn" id="clearSearchBtn" style="display: none;">&times;</button>
+          </div>
+
+          <div class="veg-toggle-wrapper">
+            <label class="toggle-switch">
+              <input type="checkbox" id="vegFilterToggle">
+              <span class="toggle-slider"></span>
+            </label>
+            <span class="veg-label"><span class="veg-indicator-dot"></span> Pure Veg</span>
+          </div>
+        </div>
+
+        <!-- Category Filter Pills -->
+        <div class="category-pills" id="categoryPills">
+          <button class="category-pill active" data-category="All">All Dishes</button>
+          <button class="category-pill" data-category="Pizza">🍕 Pizzas</button>
+          <button class="category-pill" data-category="Burgers">🍔 Burgers</button>
+          <button class="category-pill" data-category="Biryani">🍚 Biryani</button>
+          <button class="category-pill" data-category="Asian">🍜 Asian</button>
+          <button class="category-pill" data-category="Desserts">🍰 Desserts</button>
+          <button class="category-pill" data-category="Beverages">🥤 Drinks</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Main Menu Area -->
+    <main class="main-container">
+      <div class="menu-header">
+        <div>
+          <h2 class="section-title" id="activeCategoryTitle">Explore Our Menu</h2>
+          <p class="section-subtitle" id="menuCountSubtitle">Showing 8 delicious items</p>
+        </div>
+
+        <div class="api-docs-link">
+          <button class="btn btn-outline btn-sm" id="btnOpenApiDrawer">
+            <i class="fa-solid fa-code"></i> Developer REST API Tester
+          </button>
+        </div>
+      </div>
+
+      <!-- Food Items Grid -->
+      <div class="food-grid" id="foodGrid">
+        <!-- Rendered via JavaScript -->
+        <div class="empty-state">
+          <div class="spinner"></div>
+          <p>Loading fresh food items...</p>
+        </div>
+      </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="app-footer">
+      <div class="footer-inner">
+        <span>QuickBite &copy; 2026 | Full-Stack Food Delivery Web Application</span>
+        <span>Built with Node.js, Express, and MongoDB</span>
+      </div>
+    </footer>
+  </div>
+
+  <!-- ================= CART DRAWER (Slide-out) ================= -->
+  <div class="drawer-backdrop" id="cartBackdrop">
+    <div class="cart-drawer" id="cartDrawer">
+      <div class="drawer-header">
+        <div class="drawer-title">
+          <i class="fa-solid fa-bag-shopping"></i>
+          <h3>Your Food Cart (<span id="cartDrawerCount">0</span>)</h3>
+        </div>
+        <button class="drawer-close" id="btnCloseCart">&times;</button>
+      </div>
+
+      <div class="cart-body">
+        <!-- Cart Items List -->
+        <div class="cart-items-list" id="cartItemsList">
+          <!-- Rendered dynamically -->
+        </div>
+
+        <!-- Checkout Form (when items exist) -->
+        <div id="checkoutFormContainer" style="display: none;">
+          <h4 class="checkout-heading"><i class="fa-solid fa-location-dot"></i> Delivery Details</h4>
+          <form id="checkoutForm" class="styled-form">
+            <div class="form-group">
+              <label for="custName">Full Name <span class="required">*</span></label>
+              <input type="text" id="custName" placeholder="e.g. Priya Sharma" required>
+            </div>
+            <div class="form-group">
+              <label for="custPhone">Phone Number <span class="required">*</span></label>
+              <input type="tel" id="custPhone" placeholder="e.g. +91 98765 43210" required>
+            </div>
+            <div class="form-group">
+              <label for="custAddress">Delivery Address <span class="required">*</span></label>
+              <textarea id="custAddress" rows="2" placeholder="e.g. Flat 302, Palm Heights, Indiranagar" required></textarea>
+            </div>
+            <div class="form-group">
+              <label for="custPayment">Payment Method</label>
+              <select id="custPayment">
+                <option value="Cash on Delivery">Cash on Delivery (COD)</option>
+                <option value="UPI / Online">Instant UPI / Net Banking</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="custNotes">Delivery Notes (Optional)</label>
+              <input type="text" id="custNotes" placeholder="e.g. Please call before arriving">
+            </div>
+
+            <!-- Bill Breakdown -->
+            <div class="bill-summary">
+              <div class="bill-row">
+                <span>Subtotal</span>
+                <span id="billSubtotal">₹0</span>
+              </div>
+              <div class="bill-row">
+                <span>Delivery Fee</span>
+                <span id="billDeliveryFee">₹30</span>
+              </div>
+              <div class="bill-row total-row">
+                <span>Total Amount</span>
+                <span id="billTotalAmount">₹0</span>
+              </div>
+            </div>
+
+            <button type="submit" class="btn btn-primary btn-block btn-lg" id="btnPlaceOrder">
+              <i class="fa-solid fa-check"></i> Place Delivery Order
+            </button>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= ORDERS & TRACKING MODAL ================= -->
+  <div class="modal-backdrop" id="ordersModal">
+    <div class="modal-dialog modal-lg">
+      <div class="modal-header">
+        <div class="modal-title">
+          <i class="fa-solid fa-motorcycle text-primary"></i>
+          <h3>Live Orders & Delivery Tracker</h3>
+        </div>
+        <button class="modal-close" data-close="ordersModal">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="orders-list" id="ordersListContainer">
+          <!-- Rendered dynamically -->
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= MANAGE MENU (Admin CRUD) MODAL ================= -->
+  <div class="modal-backdrop" id="menuManagerModal">
+    <div class="modal-dialog modal-xl">
+      <div class="modal-header">
+        <div class="modal-title">
+          <i class="fa-solid fa-utensils text-primary"></i>
+          <h3>Restaurant Menu Management (Full CRUD)</h3>
+        </div>
+        <button class="modal-close" data-close="menuManagerModal">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="manager-layout">
+          <!-- Left: Add New Food Form -->
+          <div class="manager-form-pane">
+            <h4 class="pane-heading"><i class="fa-solid fa-plus-circle"></i> Add New Dish to Menu</h4>
+            <form id="addFoodForm" class="styled-form">
+              <div class="form-group">
+                <label for="newFoodName">Dish Name <span class="required">*</span></label>
+                <input type="text" id="newFoodName" placeholder="e.g. Peri-Peri Paneer Pizza" required>
+              </div>
+
+              <div class="form-row-2">
+                <div class="form-group">
+                  <label for="newFoodPrice">Price (₹) <span class="required">*</span></label>
+                  <input type="number" id="newFoodPrice" min="1" placeholder="349" required>
+                </div>
+                <div class="form-group">
+                  <label for="newFoodCategory">Category <span class="required">*</span></label>
+                  <select id="newFoodCategory" required>
+                    <option value="Pizza">Pizza</option>
+                    <option value="Burgers">Burgers</option>
+                    <option value="Biryani">Biryani</option>
+                    <option value="Asian">Asian</option>
+                    <option value="Desserts">Desserts</option>
+                    <option value="Beverages">Beverages</option>
+                    <option value="Sides">Sides</option>
+                  </select>
+                </div>
+              </div>
+
+              <div class="form-row-2">
+                <div class="form-group">
+                  <label for="newFoodVeg">Dietary Type</label>
+                  <select id="newFoodVeg">
+                    <option value="true">🌱 Pure Vegetarian</option>
+                    <option value="false">🍗 Non-Vegetarian</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label for="newFoodPrep">Prep Time</label>
+                  <input type="text" id="newFoodPrep" value="20 mins">
+                </div>
+              </div>
+
+              <div class="form-group">
+                <label for="newFoodImage">Image URL (Unsplash or web image)</label>
+                <input type="url" id="newFoodImage" placeholder="https://images.unsplash.com/...">
+              </div>
+
+              <div class="form-group">
+                <label for="newFoodDesc">Description</label>
+                <textarea id="newFoodDesc" rows="2" placeholder="List ingredients or taste profile..."></textarea>
+              </div>
+
+              <button type="submit" class="btn btn-primary btn-block">
+                <i class="fa-solid fa-plus"></i> Add Dish to Menu
+              </button>
+            </form>
+          </div>
+
+          <!-- Right: Existing Menu Items Table (Edit / Toggle Availability / Delete) -->
+          <div class="manager-table-pane">
+            <h4 class="pane-heading"><i class="fa-solid fa-list"></i> Current Menu Items (<span id="manageMenuCount">0</span>)</h4>
+            <div class="table-responsive">
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th>Dish</th>
+                    <th>Category</th>
+                    <th>Price</th>
+                    <th>Diet</th>
+                    <th>Status</th>
+                    <th class="text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="manageMenuTableBody">
+                  <!-- Rendered via JS -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= EDIT FOOD ITEM MODAL ================= -->
+  <div class="modal-backdrop" id="editFoodModal">
+    <div class="modal-dialog modal-md">
+      <div class="modal-header">
+        <h3 class="modal-title"><i class="fa-solid fa-pen-to-square"></i> Edit Dish Details</h3>
+        <button class="modal-close" data-close="editFoodModal">&times;</button>
+      </div>
+      <form id="editFoodForm" class="modal-body styled-form">
+        <input type="hidden" id="editFoodId">
+
+        <div class="form-group">
+          <label for="editFoodName">Dish Name <span class="required">*</span></label>
+          <input type="text" id="editFoodName" required>
+        </div>
+
+        <div class="form-row-2">
+          <div class="form-group">
+            <label for="editFoodPrice">Price (₹) <span class="required">*</span></label>
+            <input type="number" id="editFoodPrice" min="1" required>
+          </div>
+          <div class="form-group">
+            <label for="editFoodCategory">Category</label>
+            <select id="editFoodCategory" required>
+              <option value="Pizza">Pizza</option>
+              <option value="Burgers">Burgers</option>
+              <option value="Biryani">Biryani</option>
+              <option value="Asian">Asian</option>
+              <option value="Desserts">Desserts</option>
+              <option value="Beverages">Beverages</option>
+              <option value="Sides">Sides</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="editFoodDesc">Description</label>
+          <textarea id="editFoodDesc" rows="2"></textarea>
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline" data-close="editFoodModal">Cancel</button>
+          <button type="submit" class="btn btn-primary">
+            <i class="fa-solid fa-floppy-disk"></i> Save Changes
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ================= DEVELOPER API TESTER MODAL ================= -->
+  <div class="modal-backdrop" id="apiTesterModal">
+    <div class="modal-dialog modal-lg">
+      <div class="modal-header">
+        <div class="modal-title">
+          <i class="fa-solid fa-terminal text-primary"></i>
+          <h3>REST API Explorer (16 Endpoints)</h3>
+        </div>
+        <button class="modal-close" data-close="apiTesterModal">&times;</button>
+      </div>
+      <div class="modal-body">
+        <p class="text-secondary" style="font-size: 0.88rem; margin-bottom: 1rem;">
+          Test any RESTful API endpoint live against the Express & MongoDB backend:
+        </p>
+
+        <div class="form-group">
+          <label for="apiSelector">Select Endpoint to Test:</label>
+          <select id="apiSelector" class="code-select">
+            <optgroup label="Food Menu Endpoints (CRUD)">
+              <option value="GET_FOODS">GET /api/foods - List all food items (Read)</option>
+              <option value="GET_FOOD_ID">GET /api/foods/:id - Get single food details (Read)</option>
+              <option value="POST_FOOD">POST /api/foods - Add new dish (Create)</option>
+              <option value="PUT_FOOD">PUT /api/foods/:id - Update dish info (Update)</option>
+              <option value="PATCH_FOOD_AVAIL">PATCH /api/foods/:id/availability - Toggle stock (Update)</option>
+              <option value="DELETE_FOOD">DELETE /api/foods/:id - Delete dish from menu (Delete)</option>
+            </optgroup>
+            <optgroup label="Order Management Endpoints (CRUD)">
+              <option value="GET_ORDERS">GET /api/orders - List all orders (Read)</option>
+              <option value="GET_ORDER_ID">GET /api/orders/:id - Get order tracking (Read)</option>
+              <option value="POST_ORDER">POST /api/orders - Place new food order (Create)</option>
+              <option value="PATCH_ORDER_STATUS">PATCH /api/orders/:id/status - Update delivery status (Update)</option>
+              <option value="DELETE_ORDER">DELETE /api/orders/:id - Cancel/Delete order (Delete)</option>
+            </optgroup>
+            <optgroup label="Reviews & Metrics Endpoints">
+              <option value="GET_REVIEWS">GET /api/reviews/food/:foodId - Get reviews (Read)</option>
+              <option value="POST_REVIEW">POST /api/reviews - Add review & update rating (Create)</option>
+              <option value="GET_STATS">GET /api/stats - Business & Menu Metrics (Read)</option>
+              <option value="GET_HEALTH">GET /api/stats/health - System Health Check (Read)</option>
+            </optgroup>
+          </select>
+        </div>
+
+        <div class="api-meta-row">
+          <span class="method-badge method-get" id="testMethodBadge">GET</span>
+          <span class="route-box" id="testRouteDisplay">/api/foods</span>
+        </div>
+
+        <div class="form-group mt-3" id="testRequestBodyGroup" style="display: none;">
+          <label for="testRequestBody">JSON Request Payload:</label>
+          <textarea id="testRequestBody" rows="5" class="code-textarea"></textarea>
+        </div>
+
+        <div class="mt-3 flex-gap">
+          <button class="btn btn-primary" id="btnRunApiTest">
+            <i class="fa-solid fa-play"></i> Send Live Request
+          </button>
+        </div>
+
+        <div class="response-container mt-3">
+          <div class="response-header">
+            <span>Response Output:</span>
+            <div class="response-pills">
+              <span id="testStatusPill" class="badge-status">Status: Ready</span>
+              <span id="testLatencyPill" class="badge-time">0 ms</span>
+            </div>
+          </div>
+          <pre class="response-json" id="testResponseBox">// Click "Send Live Request" to test...</pre>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Notification Container -->
+  <div class="toast-container" id="toastContainer"></div>
+
+  <!-- Main Application Logic -->
+  <script src="js/app.js"></script>
+</body>
+</html>
